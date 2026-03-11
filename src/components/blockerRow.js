@@ -83,10 +83,7 @@ export function renderBlockerRow(blocker, index, { onUpdate, onRemove, onComment
 
           const showLesson = hyp.status === 'success' || hyp.status === 'fail';
 
-          const hypSelClass = readonly && hyp.selected !== undefined
-            ? (hyp.selected ? 'border-l-gray-900' : 'opacity-50')
-            : '';
-          const hypRow = el('div', { className: `ml-4 border-l-2 border-gray-100 pl-3 ${hypSelClass}` },
+          const hypRow = el('div', { className: 'ml-4 border-l-2 border-gray-100 pl-3' },
             ...(readonly ? [el('span', { className: 'text-xs text-gray-400' }, '가설')] : []),
             el('div', { className: 'flex items-center gap-2' },
               readonly
@@ -155,10 +152,7 @@ export function renderBlockerRow(blocker, index, { onUpdate, onRemove, onComment
 
       renderHypotheses();
 
-      const reasonSelClass = readonly && reason.selected !== undefined
-        ? (reason.selected ? 'border-l-4 border-l-gray-900' : 'opacity-50')
-        : '';
-      const reasonRow = el('div', { className: `bg-gray-50/50 rounded-lg p-3 space-y-3 ${reasonSelClass}` },
+      const reasonRow = el('div', { className: 'bg-gray-50/50 rounded-lg p-3 space-y-3' },
         el('div', { className: 'flex items-center gap-2' },
           readonly
             ? el('span', { className: 'flex-1 text-gray-700' }, reason.text || '(미작성)')
@@ -193,10 +187,7 @@ export function renderBlockerRow(blocker, index, { onUpdate, onRemove, onComment
 
   renderReasons();
 
-  const selectedClass = readonly && isSelected !== undefined
-    ? (isSelected ? 'border-l-4 border-l-gray-900' : 'opacity-50')
-    : '';
-  const container = el('div', { className: `bg-white border border-gray-200 rounded-xl p-5 ${selectedClass}` },
+  const container = el('div', { className: 'bg-white border border-gray-200 rounded-xl p-5' },
     // Header
     el('div', { className: 'flex items-center justify-between mb-4' },
       el('span', { className: 'text-xs text-gray-400' }, `블록커 ${index + 1}`),

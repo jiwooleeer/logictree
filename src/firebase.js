@@ -8,6 +8,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  setDoc,
   query,
   where,
   orderBy,
@@ -103,6 +104,43 @@ export async function getComments(targetId) {
       const tb = b.createdAt?.toMillis?.() || 0;
       return ta - tb;
     });
+}
+
+// Help config
+const DEFAULT_HELP = {
+  goal: { help: '달성하고자 하는 구체적인 목표를 작성하세요.', placeholder: '달성하고자 하는 목표를 입력하세요' },
+  blocker: { help: '목표 달성을 방해하는 장애물을 작성하세요.', placeholder: '목표를 가로막는 것을 입력하세요' },
+  reason: { help: '블록커가 왜 발생하는지 원인을 분석하세요.', placeholder: '블록커가 발생하는 이유를 구체적으로 입력하세요' },
+  hypothesis: { help: '문제를 해결할 수 있는 가설을 세우세요.', placeholder: '해결책을 입력하고 그 결과 어떻게 될지 입력하세요' },
+  lesson: { help: '검증을 통해 새롭게 알게 된 사실을 기록하세요.', placeholder: '새롭게 알게 된 사실을 기록하세요.' },
+};
+
+let helpCache = null;
+
+export function getDefaultHelp() {
+  return DEFAULT_HELP;
+}
+
+export async function getHelpConfig() {
+  if (helpCache) return helpCache;
+  const snap = await getDoc(doc(db, 'config', 'helpTexts'));
+  if (snap.exists()) {
+    helpCache = { ...DEFAULT_HELP };
+    const data = snap.data();
+    for (const key of Object.keys(DEFAULT_HELP)) {
+      if (data[key]) helpCache[key] = { ...DEFAULT_HELP[key], ...data[key] };
+    }
+    return helpCache;
+  }
+  return DEFAULT_HELP;
+}
+
+export async function saveHelpConfig(config) {
+  await setDoc(doc(db, 'config', 'helpTexts'), config);
+  helpCache = { ...DEFAULT_HELP };
+  for (const key of Object.keys(DEFAULT_HELP)) {
+    if (config[key]) helpCache[key] = { ...DEFAULT_HELP[key], ...config[key] };
+  }
 }
 
 export async function getCommentCountsForProject(projectId) {

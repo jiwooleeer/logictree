@@ -1,9 +1,10 @@
 import { el, clearAndAppend } from '../utils/dom.js';
 import { getState } from '../state.js';
 import { navigate } from '../router.js';
-import { getProject, saveProject, submitProject } from '../firebase.js';
+import { getProject, saveProject, submitProject, getHelpConfig, getDefaultHelp } from '../firebase.js';
 import { renderNavbar } from '../components/navbar.js';
 import { CATEGORIES, STATUSES, STATUS_COLORS } from '../utils/constants.js';
+import { helpIcon } from '../components/helpIcon.js';
 
 function toggleIcon(expanded) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -53,25 +54,34 @@ export async function renderEditor(container, params) {
   let blockers = [
     { blocker: '', selected: false, reasons: [] },
   ];
+  let helpCfg = getDefaultHelp();
 
-  // Load existing project
-  if (projectId) {
-    content.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-8' }, '불러오는 중...'));
-    const project = await getProject(projectId);
-    if (project) {
-      goalValue = project.goal || '';
-      blockers = project.content || blockers;
-      currentStatus = project.status || 'draft';
-    }
-    content.innerHTML = '';
+  // Load existing project and help config
+  content.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-8' }, '불러오는 중...'));
+  const [loadedHelp, loadedProject] = await Promise.all([
+    getHelpConfig(),
+    projectId ? getProject(projectId) : Promise.resolve(null),
+  ]);
+  helpCfg = loadedHelp;
+  if (loadedProject) {
+    goalValue = loadedProject.goal || '';
+    blockers = loadedProject.content || blockers;
+    currentStatus = loadedProject.status || 'draft';
   }
+  content.innerHTML = '';
 
   const statusMsg = el('span', { className: 'text-sm text-gray-400' });
+  function onHelpUpdate(updated) {
+    helpCfg = updated;
+    goalInput.placeholder = helpCfg.goal.placeholder;
+    renderTree();
+  }
+
   const goalInput = el('input', {
     type: 'text',
     value: goalValue,
     className: 'w-full text-sm text-gray-900 placeholder-gray-400 bg-gray-100/70 rounded-lg px-3 py-3 mb-6 focus:outline-none focus:bg-gray-200/70',
-    placeholder: '달성하고자 하는 목표를 입력하세요',
+    placeholder: helpCfg.goal.placeholder,
   });
 
   const treeContainer = el('div', {});
@@ -90,6 +100,19 @@ export async function renderEditor(container, params) {
           row.classList.add('bg-gray-100/70');
         }
       });
+    }
+
+    function sectionHeader(label, sectionKey, onAdd) {
+      return el('div', { className: 'flex items-center justify-between mb-2' },
+        el('div', { className: 'flex items-center gap-1.5' },
+          el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, label),
+          helpIcon(sectionKey, helpCfg, onHelpUpdate),
+        ),
+        el('button', {
+          className: 'text-xs text-gray-400 hover:text-gray-600',
+          onclick: (e) => { e._handled = true; onAdd(); },
+        }, '+ 추가'),
+      );
     }
 
     function makeRow(item, textKey, placeholder, onToggle, onInput, onRemove, isExpanded) {
@@ -141,11 +164,14 @@ export async function renderEditor(container, params) {
       ));
       if (hyp.status === 'success' || hyp.status === 'fail') {
         wrapper.appendChild(el('div', {},
-          el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2' }, '레슨런'),
+          el('div', { className: 'flex items-center gap-1.5 mb-2' },
+            el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, '레슨런'),
+            helpIcon('lesson', helpCfg, onHelpUpdate),
+          ),
           el('textarea', {
             className: 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:bg-gray-50 resize-none',
             rows: '4',
-            placeholder: '새롭게 알게 된 사실을 기록하세요.',
+            placeholder: helpCfg.lesson.placeholder,
             value: hyp.lessonLearned || '',
             oninput: (e) => { hyp.lessonLearned = e.target.value; },
           }),
@@ -156,19 +182,12 @@ export async function renderEditor(container, params) {
 
     function renderHypList(hypotheses) {
       const wrapper = el('div', { className: 'ml-6 border-l-2 border-gray-200 pl-4 mt-2 space-y-2' });
-      wrapper.appendChild(el('div', { className: 'flex items-center justify-between mb-2' },
-        el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, '가설'),
-        el('button', {
-          className: 'text-xs text-gray-400 hover:text-gray-600',
-          onclick: (e) => {
-            e._handled = true;
-            hypotheses.push({ text: '', status: 'pending', selected: false, lessonLearned: '' });
-            renderTree();
-          },
-        }, '+ 추가'),
-      ));
+      wrapper.appendChild(sectionHeader('가설', 'hypothesis', () => {
+        hypotheses.push({ text: '', status: 'pending', selected: false, lessonLearned: '' });
+        renderTree();
+      }));
       hypotheses.forEach((hyp, hi) => {
-        const row = makeRow(hyp, 'text', '해결책을 입력하고 그 결과 어떻게 될지 입력하세요', () => {
+        const row = makeRow(hyp, 'text', helpCfg.hypothesis.placeholder, () => {
           if (hyp.selected) {
             hyp.selected = false;
           } else {
@@ -200,19 +219,12 @@ export async function renderEditor(container, params) {
 
     function renderReasonList(reasons) {
       const wrapper = el('div', { className: 'ml-6 border-l-2 border-gray-200 pl-4 mt-2 space-y-2' });
-      wrapper.appendChild(el('div', { className: 'flex items-center justify-between mb-2' },
-        el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, '문제'),
-        el('button', {
-          className: 'text-xs text-gray-400 hover:text-gray-600',
-          onclick: (e) => {
-            e._handled = true;
-            reasons.push({ text: '', category: 'cognitive', selected: false, hypotheses: [] });
-            renderTree();
-          },
-        }, '+ 추가'),
-      ));
+      wrapper.appendChild(sectionHeader('문제', 'reason', () => {
+        reasons.push({ text: '', category: 'cognitive', selected: false, hypotheses: [] });
+        renderTree();
+      }));
       reasons.forEach((reason, ri) => {
-        const row = makeRow(reason, 'text', '블록커가 발생하는 이유를 구체적으로 입력하세요', () => {
+        const row = makeRow(reason, 'text', helpCfg.reason.placeholder, () => {
           if (reason.selected) {
             reason.selected = false;
           } else {
@@ -247,19 +259,12 @@ export async function renderEditor(container, params) {
 
     // === Blockers ===
     const blockerSection = el('div', { className: 'space-y-2' });
-    blockerSection.appendChild(el('div', { className: 'flex items-center justify-between mb-2' },
-      el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, '블록커'),
-      el('button', {
-        className: 'text-xs text-gray-400 hover:text-gray-600',
-        onclick: (e) => {
-          e._handled = true;
-          blockers.push({ blocker: '', selected: false, reasons: [] });
-          renderTree();
-        },
-      }, '+ 추가'),
-    ));
+    blockerSection.appendChild(sectionHeader('블록커', 'blocker', () => {
+      blockers.push({ blocker: '', selected: false, reasons: [] });
+      renderTree();
+    }));
     blockers.forEach((blocker, i) => {
-      const row = makeRow(blocker, 'blocker', '목표를 가로막는 것을 입력하세요', () => {
+      const row = makeRow(blocker, 'blocker', helpCfg.blocker.placeholder, () => {
         if (blocker.selected) {
           blocker.selected = false;
         } else {
@@ -352,7 +357,10 @@ export async function renderEditor(container, params) {
 
   content.appendChild(actions);
   content.appendChild(el('div', { className: 'mt-6' },
-    el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2' }, '목표'),
+    el('div', { className: 'flex items-center gap-1.5 mb-2' },
+      el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide' }, '목표'),
+      helpIcon('goal', helpCfg, onHelpUpdate),
+    ),
     goalInput,
     treeContainer,
   ));
