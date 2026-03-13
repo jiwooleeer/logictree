@@ -19,7 +19,7 @@ function commentIconSmall() {
   return svg;
 }
 
-export function renderProjectCard(project, onRefresh, commentCount = 0) {
+export function renderProjectCard(project, onRefresh, commentCount = 0, hasNewComments = false) {
   const state = getState();
 
   const badgeEl = project.badge
@@ -56,11 +56,19 @@ export function renderProjectCard(project, onRefresh, commentCount = 0) {
     el('span', { className: 'text-gray-300 shrink-0' }, '|'),
     el('span', { className: 'text-sm text-gray-900 truncate flex-1' }, project.goal || '(목표 미작성)'),
     ...(commentCount > 0
-      ? [el('span', { className: 'inline-flex items-center gap-0.5 text-xs text-gray-400 shrink-0' },
+      ? [el('span', { className: 'relative inline-flex items-center gap-0.5 text-xs text-gray-400 shrink-0' },
           commentIconSmall(),
           String(commentCount),
+          ...(hasNewComments
+            ? [el('span', { className: 'absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full' })]
+            : []),
         )]
-      : []),
+      : (hasNewComments
+        ? [el('span', { className: 'relative inline-flex items-center gap-0.5 text-xs text-gray-400 shrink-0' },
+            commentIconSmall(),
+            el('span', { className: 'absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full' }),
+          )]
+        : [])),
     el('span', { className: 'text-gray-200 shrink-0' }, '|'),
     el('span', { className: 'text-xs text-gray-400 shrink-0' }, formatDate(project.createdAt)),
     ...(state.isTeacher

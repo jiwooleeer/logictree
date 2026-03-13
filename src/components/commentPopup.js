@@ -30,6 +30,9 @@ export function showCommentPopup(targetId, anchorEl, onPost) {
       input.value = '';
       sendBtn.disabled = false;
       sendBtn.textContent = '전송';
+      // Update lastSeen so the commenter doesn't see their own red dot
+      const projectId = targetId.split('_')[0];
+      localStorage.setItem(`lastSeen_${projectId}`, String(Date.now()));
       if (onPost) onPost();
       await loadComments();
     },

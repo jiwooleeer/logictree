@@ -53,8 +53,8 @@ export async function renderDashboard(container) {
     grid.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-8' }, '불러오는 중...'));
     try {
       const projects = await getProjects(filter || null);
-      const commentTotals = await Promise.all(
-        projects.map((p) => getCommentCountsForProject(p.id).then((r) => r.total))
+      const commentResults = await Promise.all(
+        projects.map((p) => getCommentCountsForProject(p.id))
       );
       grid.innerHTML = '';
       if (projects.length === 0) {
@@ -62,7 +62,11 @@ export async function renderDashboard(container) {
         return;
       }
       projects.forEach((p, idx) => {
-        grid.appendChild(renderProjectCard(p, () => load(filterInput.value.trim()), commentTotals[idx]));
+        const { total, latestAt } = commentResults[idx];
+        const lastSeen = parseInt(localStorage.getItem(`lastSeen_${p.id}`) || '0', 10);
+        const maxLatest = Object.values(latestAt).reduce((a, b) => Math.max(a, b), 0);
+        const hasNew = maxLatest > lastSeen;
+        grid.appendChild(renderProjectCard(p, () => load(filterInput.value.trim()), total, hasNew));
       });
     } catch (err) {
       grid.innerHTML = '';
