@@ -85,6 +85,23 @@ export async function loadDraft(nickname) {
   return { id: d.id, ...d.data() };
 }
 
+// 임시저장 목록 전체 반환
+export async function loadDrafts(nickname) {
+  const q = query(
+    collection(db, 'projects'),
+    where('nickname', '==', nickname),
+    where('status', '==', 'draft')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => {
+      const ta = a.createdAt?.toMillis?.() || 0;
+      const tb = b.createdAt?.toMillis?.() || 0;
+      return tb - ta;
+    });
+}
+
 export async function addComment(targetId, author, text) {
   await addDoc(collection(db, 'comments'), {
     targetId,

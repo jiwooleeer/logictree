@@ -1,9 +1,59 @@
-import { el, clearAndAppend } from '../utils/dom.js';
+import { el, clearAndAppend, formatDate } from '../utils/dom.js';
 import { getState } from '../state.js';
 import { navigate } from '../router.js';
-import { getProjects, loadDraft, getCommentCountsForProject } from '../firebase.js';
+import { getProjects, loadDrafts, getCommentCountsForProject } from '../firebase.js';
 import { renderNavbar } from '../components/navbar.js';
 import { renderProjectCard } from '../components/projectCard.js';
+
+// 임시저장 선택 모달
+function showDraftSelectModal(drafts, onSelect) {
+  const overlay = el('div', {
+    className: 'fixed inset-0 bg-black/40 flex items-center justify-center z-50',
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) document.body.removeChild(overlay);
+  });
+
+  const modal = el('div', {
+    className: 'bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden',
+  });
+
+  modal.appendChild(
+    el('div', { className: 'flex items-center justify-between px-5 py-4 border-b border-gray-100' },
+      el('h3', { className: 'font-semibold text-gray-900 text-sm' }, '임시저장 목록'),
+      el('button', {
+        className: 'text-gray-400 hover:text-gray-600 text-lg leading-none',
+        onclick: () => document.body.removeChild(overlay),
+      }, '×'),
+    )
+  );
+
+  const list = el('div', { className: 'max-h-72 overflow-y-auto divide-y divide-gray-100' });
+
+  if (drafts.length === 0) {
+    list.appendChild(
+      el('p', { className: 'text-sm text-gray-400 text-center py-10' }, '저장된 임시 저장본이 없습니다.')
+    );
+  } else {
+    drafts.forEach((draft) => {
+      const item = el('button', {
+        className: 'w-full text-left px-5 py-3 hover:bg-gray-50 transition-colors',
+        onclick: () => {
+          document.body.removeChild(overlay);
+          onSelect(draft);
+        },
+      },
+        el('div', { className: 'text-sm font-medium text-gray-900 truncate' }, draft.goal || '(목표 미작성)'),
+        el('div', { className: 'text-xs text-gray-400 mt-0.5' }, formatDate(draft.createdAt) || '날짜 정보 없음'),
+      );
+      list.appendChild(item);
+    });
+  }
+
+  modal.appendChild(list);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
 
 export async function renderDashboard(container) {
   const state = getState();
@@ -32,11 +82,14 @@ export async function renderDashboard(container) {
       el('button', {
         className: 'border border-gray-300 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors',
         onclick: async () => {
-          const draft = await loadDraft(state.nickname);
-          if (draft) {
-            navigate(`/edit/${draft.id}`);
-          } else {
+          const drafts = await loadDrafts(state.nickname);
+          if (drafts.length === 0) {
             alert('저장된 임시 저장본이 없습니다.');
+          } else if (drafts.length === 1) {
+            // 하나뿐이면 바로 이동
+            navigate(`/edit/${drafts[0].id}`);
+          } else {
+            showDraftSelectModal(drafts, (draft) => navigate(`/edit/${draft.id}`));
           }
         },
       }, '내 임시저장 불러오기'),

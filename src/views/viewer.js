@@ -2,6 +2,7 @@ import { el, clearAndAppend, formatDate, thumbsUpIcon } from '../utils/dom.js';
 import { getState } from '../state.js';
 import { navigate } from '../router.js';
 import { getProject, toggleBadge, getCommentCountsForProject } from '../firebase.js';
+import { WRITING_STATUSES, WRITING_STATUS_COLORS } from '../utils/constants.js';
 import { renderNavbar } from '../components/navbar.js';
 import { renderBlockerRow } from '../components/blockerRow.js';
 import { showCommentPopup } from '../components/commentPopup.js';
@@ -81,6 +82,11 @@ export async function renderViewer(container, params) {
       el('div', { className: 'flex items-center gap-2 mb-2' },
         el('span', { className: 'text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full' }, project.nickname),
         el('span', { className: 'text-xs text-gray-400' }, formatDate(project.createdAt)),
+        ...(project.writingStatus
+          ? [el('span', {
+              className: `text-xs px-2 py-0.5 rounded-full ${WRITING_STATUS_COLORS[project.writingStatus] || ''}`,
+            }, WRITING_STATUSES[project.writingStatus] || '')]
+          : []),
       ),
       el('span', { className: 'text-xs text-gray-400 uppercase tracking-wide' }, '목표'),
       el('h2', { className: 'text-xl font-bold text-gray-900 mt-1' }, project.goal || '(목표 미작성)'),

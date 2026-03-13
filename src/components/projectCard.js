@@ -2,6 +2,7 @@ import { el, formatDate, thumbsUpIcon } from '../utils/dom.js';
 import { getState } from '../state.js';
 import { toggleBadge, deleteProject } from '../firebase.js';
 import { navigate } from '../router.js';
+import { WRITING_STATUSES, WRITING_STATUS_COLORS } from '../utils/constants.js';
 
 function commentIconSmall() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -69,6 +70,11 @@ export function renderProjectCard(project, onRefresh, commentCount = 0, hasNewCo
             el('span', { className: 'absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full' }),
           )]
         : [])),
+    ...(project.writingStatus
+      ? [el('span', {
+          className: `text-xs px-2 py-0.5 rounded-full shrink-0 ${WRITING_STATUS_COLORS[project.writingStatus] || ''}`,
+        }, WRITING_STATUSES[project.writingStatus] || '')]
+      : []),
     el('span', { className: 'text-gray-200 shrink-0' }, '|'),
     el('span', { className: 'text-xs text-gray-400 shrink-0' }, formatDate(project.createdAt)),
     ...(state.isTeacher

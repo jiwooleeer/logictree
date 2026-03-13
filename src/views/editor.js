@@ -3,7 +3,7 @@ import { getState } from '../state.js';
 import { navigate } from '../router.js';
 import { getProject, saveProject, submitProject, getHelpConfig, getDefaultHelp } from '../firebase.js';
 import { renderNavbar } from '../components/navbar.js';
-import { CATEGORIES, STATUSES, STATUS_COLORS } from '../utils/constants.js';
+import { CATEGORIES, STATUSES, STATUS_COLORS, WRITING_STATUSES, WRITING_STATUS_COLORS } from '../utils/constants.js';
 import { helpIcon } from '../components/helpIcon.js';
 
 function toggleIcon(expanded) {
@@ -51,12 +51,12 @@ export async function renderEditor(container, params) {
   let projectId = params?.id || null;
   let goalValue = '';
   let currentStatus = 'draft';
+  let writingStatus = 'writing';
   let blockers = [
     { blocker: '', selected: false, reasons: [] },
   ];
   let helpCfg = getDefaultHelp();
 
-  // Load existing project and help config
   content.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-8' }, '불러오는 중...'));
   const [loadedHelp, loadedProject] = await Promise.all([
     getHelpConfig(),
@@ -67,6 +67,7 @@ export async function renderEditor(container, params) {
     goalValue = loadedProject.goal || '';
     blockers = loadedProject.content || blockers;
     currentStatus = loadedProject.status || 'draft';
+    writingStatus = loadedProject.writingStatus || 'writing';
   }
   content.innerHTML = '';
 
@@ -88,6 +89,59 @@ export async function renderEditor(container, params) {
 
   function renderTree() {
     treeContainer.innerHTML = '';
+
+    // DnD 상태 (renderTree 호출마다 초기화)
+    let dndState = { list: null, idx: null };
+
+    // DnD 활성화 헬퍼: 드래그 핸들을 mousedown 해야만 드래그 시작
+    function enableDnD(itemEl, arr, idx, dragHandleEl) {
+      dragHandleEl.addEventListener('mousedown', () => {
+        itemEl.draggable = true;
+      });
+
+      itemEl.addEventListener('dragstart', (e) => {
+        dndState = { list: arr, idx };
+        e.dataTransfer.effectAllowed = 'move';
+        e.stopPropagation();
+        setTimeout(() => { itemEl.style.opacity = '0.4'; }, 0);
+      });
+
+      itemEl.addEventListener('dragend', () => {
+        itemEl.draggable = false;
+        itemEl.style.opacity = '';
+        itemEl.style.outline = '';
+        dndState = { list: null, idx: null };
+      });
+
+      itemEl.addEventListener('dragover', (e) => {
+        if (dndState.list !== arr) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        itemEl.style.outline = '2px dashed #d1d5db';
+        itemEl.style.borderRadius = '8px';
+      });
+
+      itemEl.addEventListener('dragleave', (e) => {
+        if (!itemEl.contains(e.relatedTarget)) {
+          itemEl.style.outline = '';
+        }
+      });
+
+      itemEl.addEventListener('drop', (e) => {
+        if (dndState.list !== arr) return;
+        e.preventDefault();
+        e.stopPropagation();
+        itemEl.style.outline = '';
+        const srcIdx = dndState.idx;
+        if (srcIdx !== null && srcIdx !== idx) {
+          const [moved] = arr.splice(srcIdx, 1);
+          arr.splice(idx, 0, moved);
+          renderTree();
+        }
+        dndState = { list: null, idx: null };
+      });
+    }
 
     function addParentHighlight(itemWrapper, row) {
       itemWrapper.addEventListener('focusin', () => {
@@ -115,6 +169,7 @@ export async function renderEditor(container, params) {
       );
     }
 
+    // makeRow: { row, dragHandle } 반환
     function makeRow(item, textKey, placeholder, onToggle, onInput, onRemove, isExpanded) {
       const input = el('input', {
         type: 'text',
@@ -123,10 +178,16 @@ export async function renderEditor(container, params) {
         placeholder,
         oninput: (e) => { item[textKey] = e.target.value; if (onInput) onInput(); },
       });
+      // 드래그 핸들 아이콘
+      const dragHandle = el('span', {
+        className: 'shrink-0 cursor-grab text-gray-300 hover:text-gray-500 select-none text-base leading-none px-0.5',
+        title: '드래그로 순서 변경',
+      }, '⠿');
       const row = el('div', {
         className: 'flex items-center gap-2 p-3 rounded-lg transition-all bg-gray-100/70',
         onclick: (e) => { e._handled = true; },
       },
+        dragHandle,
         el('button', {
           className: 'shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors',
           onclick: (e) => { e._handled = true; onToggle(); },
@@ -141,7 +202,7 @@ export async function renderEditor(container, params) {
         row.classList.remove('bg-blue-100/70');
         row.classList.add('bg-gray-100/70');
       });
-      return row;
+      return { row, dragHandle };
     }
 
     function renderLessonInline(hyp) {
@@ -187,7 +248,7 @@ export async function renderEditor(container, params) {
         renderTree();
       }));
       hypotheses.forEach((hyp, hi) => {
-        const row = makeRow(hyp, 'text', helpCfg.hypothesis.placeholder, () => {
+        const { row, dragHandle } = makeRow(hyp, 'text', helpCfg.hypothesis.placeholder, () => {
           if (hyp.selected) {
             hyp.selected = false;
           } else {
@@ -212,6 +273,7 @@ export async function renderEditor(container, params) {
           hypItem.appendChild(lessonEl);
         }
         addParentHighlight(hypItem, row);
+        enableDnD(hypItem, hypotheses, hi, dragHandle);
         wrapper.appendChild(hypItem);
       });
       return wrapper;
@@ -224,7 +286,7 @@ export async function renderEditor(container, params) {
         renderTree();
       }));
       reasons.forEach((reason, ri) => {
-        const row = makeRow(reason, 'text', helpCfg.reason.placeholder, () => {
+        const { row, dragHandle } = makeRow(reason, 'text', helpCfg.reason.placeholder, () => {
           if (reason.selected) {
             reason.selected = false;
           } else {
@@ -252,6 +314,7 @@ export async function renderEditor(container, params) {
           reasonItem.appendChild(hypEl);
         }
         addParentHighlight(reasonItem, row);
+        enableDnD(reasonItem, reasons, ri, dragHandle);
         wrapper.appendChild(reasonItem);
       });
       return wrapper;
@@ -264,7 +327,7 @@ export async function renderEditor(container, params) {
       renderTree();
     }));
     blockers.forEach((blocker, i) => {
-      const row = makeRow(blocker, 'blocker', helpCfg.blocker.placeholder, () => {
+      const { row, dragHandle } = makeRow(blocker, 'blocker', helpCfg.blocker.placeholder, () => {
         if (blocker.selected) {
           blocker.selected = false;
         } else {
@@ -292,6 +355,7 @@ export async function renderEditor(container, params) {
         blockerItem.appendChild(reasonsEl);
       }
       addParentHighlight(blockerItem, row);
+      enableDnD(blockerItem, blockers, i, dragHandle);
       blockerSection.appendChild(blockerItem);
     });
     treeContainer.appendChild(blockerSection);
@@ -299,24 +363,40 @@ export async function renderEditor(container, params) {
 
   renderTree();
 
+  // 작성 상태 토글 버튼
+  const writingStatusBtn = el('button', {
+    className: `text-xs px-3 py-1.5 rounded-full transition-colors ${WRITING_STATUS_COLORS[writingStatus]}`,
+    onclick: () => {
+      writingStatus = writingStatus === 'writing' ? 'done' : 'writing';
+      writingStatusBtn.className = `text-xs px-3 py-1.5 rounded-full transition-colors ${WRITING_STATUS_COLORS[writingStatus]}`;
+      writingStatusBtn.textContent = WRITING_STATUSES[writingStatus];
+    },
+  }, WRITING_STATUSES[writingStatus]);
+
+  function buildSaveData() {
+    return {
+      nickname: state.nickname,
+      goal: goalInput.value,
+      content: blockers,
+      status: currentStatus,
+      writingStatus,
+    };
+  }
+
   const actions = el('div', { className: 'flex items-center gap-3' },
     el('button', {
       className: 'text-sm text-gray-500 hover:text-gray-700',
       onclick: () => navigate('/dashboard'),
     }, '\u2190 돌아가기'),
     el('div', { className: 'flex-1' }),
+    writingStatusBtn,
     statusMsg,
     el('button', {
       className: 'border border-gray-300 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors',
       onclick: async () => {
         statusMsg.textContent = '저장 중...';
         try {
-          const data = {
-            nickname: state.nickname,
-            goal: goalInput.value,
-            content: blockers,
-            status: currentStatus,
-          };
+          const data = buildSaveData();
           if (projectId) data.id = projectId;
           projectId = await saveProject(data);
           statusMsg.textContent = '저장됨!';
@@ -337,12 +417,7 @@ export async function renderEditor(container, params) {
         if (!confirm('제출하면 대시보드에 공개됩니다. 제출할까요?')) return;
         statusMsg.textContent = '제출 중...';
         try {
-          const data = {
-            nickname: state.nickname,
-            goal: goalInput.value,
-            content: blockers,
-            status: currentStatus,
-          };
+          const data = buildSaveData();
           if (projectId) data.id = projectId;
           projectId = await saveProject(data);
           await submitProject(projectId);
