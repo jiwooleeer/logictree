@@ -62,7 +62,7 @@ export async function saveProject(data) {
 }
 
 export async function submitProject(id) {
-  await updateDoc(doc(db, 'projects', id), { status: 'submitted' });
+  await updateDoc(doc(db, 'projects', id), { status: 'submitted', submittedAt: serverTimestamp() });
 }
 
 export async function toggleBadge(id, currentBadge) {

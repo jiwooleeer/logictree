@@ -131,25 +131,6 @@ export async function renderViewer(container, params) {
     )
   );
 
-  // Lesson learned summary
-  const lessons = [];
-  (project.content || []).forEach((b) => {
-    (b.reasons || []).forEach((r) => {
-      (r.hypotheses || []).forEach((h) => {
-        if (h.lessonLearned) lessons.push(h.lessonLearned);
-      });
-    });
-  });
-  if (lessons.length > 0) {
-    const summary = el('div', { className: 'bg-gray-50 rounded-xl p-4 mb-6' },
-      el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2' }, '레슨런 요약'),
-    );
-    lessons.forEach((l) => {
-      summary.appendChild(el('p', { className: 'text-sm text-gray-700 mb-1' }, `• ${l}`));
-    });
-    content.appendChild(summary);
-  }
-
   // Blockers
   const lastSeenAt = parseInt(localStorage.getItem(`lastSeen_${project.id}`) || '0', 10);
   const { counts: allCommentCounts, latestAt: allLatestAt } = await getCommentCountsForProject(project.id);

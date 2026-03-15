@@ -101,26 +101,50 @@ export async function renderDashboard(container) {
   content.appendChild(header);
   content.appendChild(grid);
 
+  const PAGE_SIZE = 20;
+  let allProjects = [];
+  let allCommentResults = [];
+  let displayedCount = 0;
+  let moreBtn = null;
+
+  function appendPage() {
+    const next = allProjects.slice(displayedCount, displayedCount + PAGE_SIZE);
+    next.forEach((p, i) => {
+      const idx = displayedCount + i;
+      const { total, latestAt } = allCommentResults[idx];
+      const lastSeen = parseInt(localStorage.getItem(`lastSeen_${p.id}`) || '0', 10);
+      const maxLatest = Object.values(latestAt).reduce((a, b) => Math.max(a, b), 0);
+      const hasNew = maxLatest > lastSeen;
+      grid.appendChild(renderProjectCard(p, () => load(filterInput.value.trim()), total, hasNew));
+    });
+    displayedCount += next.length;
+
+    if (moreBtn) moreBtn.remove();
+    if (displayedCount < allProjects.length) {
+      moreBtn = el('button', {
+        className: 'w-full py-3 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors',
+        onclick: () => appendPage(),
+      }, `더보기 (${allProjects.length - displayedCount}개 남음)`);
+      grid.appendChild(moreBtn);
+    }
+  }
+
   async function load(filter) {
     grid.innerHTML = '';
+    displayedCount = 0;
+    moreBtn = null;
     grid.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-8' }, '불러오는 중...'));
     try {
-      const projects = await getProjects(filter || null);
-      const commentResults = await Promise.all(
-        projects.map((p) => getCommentCountsForProject(p.id))
+      allProjects = await getProjects(filter || null);
+      allCommentResults = await Promise.all(
+        allProjects.map((p) => getCommentCountsForProject(p.id))
       );
       grid.innerHTML = '';
-      if (projects.length === 0) {
+      if (allProjects.length === 0) {
         grid.appendChild(el('p', { className: 'text-sm text-gray-400 text-center py-12' }, '아직 제출된 프로젝트가 없습니다.'));
         return;
       }
-      projects.forEach((p, idx) => {
-        const { total, latestAt } = commentResults[idx];
-        const lastSeen = parseInt(localStorage.getItem(`lastSeen_${p.id}`) || '0', 10);
-        const maxLatest = Object.values(latestAt).reduce((a, b) => Math.max(a, b), 0);
-        const hasNew = maxLatest > lastSeen;
-        grid.appendChild(renderProjectCard(p, () => load(filterInput.value.trim()), total, hasNew));
-      });
+      appendPage();
     } catch (err) {
       grid.innerHTML = '';
       grid.appendChild(el('p', { className: 'text-sm text-red-400 text-center py-8' }, '데이터를 불러오는 중 오류가 발생했습니다.'));

@@ -76,7 +76,7 @@ export function renderProjectCard(project, onRefresh, commentCount = 0, hasNewCo
         }, WRITING_STATUSES[project.writingStatus] || '')]
       : []),
     el('span', { className: 'text-gray-200 shrink-0' }, '|'),
-    el('span', { className: 'text-xs text-gray-400 shrink-0' }, formatDate(project.createdAt)),
+    el('span', { className: 'text-xs text-gray-400 shrink-0' }, formatDate(project.submittedAt || project.createdAt)),
     ...(state.isTeacher
       ? [el('button', {
         className: 'text-xs text-red-400 hover:text-red-600 shrink-0',
