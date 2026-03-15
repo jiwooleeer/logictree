@@ -35,8 +35,8 @@ export async function getProjects(nicknameFilter = null) {
   return snapshot.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => {
-      const ta = a.createdAt?.toMillis?.() || 0;
-      const tb = b.createdAt?.toMillis?.() || 0;
+      const ta = (a.submittedAt || a.createdAt)?.toMillis?.() || 0;
+      const tb = (b.submittedAt || b.createdAt)?.toMillis?.() || 0;
       return tb - ta;
     });
 }
