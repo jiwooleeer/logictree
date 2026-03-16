@@ -67,8 +67,10 @@ export async function renderDashboard(container) {
   clearAndAppend(container, navbar, content);
 
   // Header actions
+  const savedFilter = sessionStorage.getItem('dashboard_filter') || '';
   const filterInput = el('input', {
     type: 'text',
+    value: savedFilter,
     className: 'border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 w-48',
     placeholder: '닉네임으로 검색...',
   });
@@ -155,8 +157,10 @@ export async function renderDashboard(container) {
   let timeout;
   filterInput.addEventListener('input', () => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => load(filterInput.value.trim().toLowerCase()), 300);
+    const val = filterInput.value.trim().toLowerCase();
+    sessionStorage.setItem('dashboard_filter', filterInput.value.trim());
+    timeout = setTimeout(() => load(val), 300);
   });
 
-  load();
+  load(savedFilter.toLowerCase() || undefined);
 }
