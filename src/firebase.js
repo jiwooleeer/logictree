@@ -187,9 +187,10 @@ export async function getCommentsForProject(projectId) {
   const q = query(
     collection(db, 'comments'),
     where('targetId', '>=', projectId),
-    where('targetId', '<=', projectId + '\uf8ff'),
-    orderBy('createdAt', 'desc')
+    where('targetId', '<=', projectId + '\uf8ff')
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snapshot.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 }
