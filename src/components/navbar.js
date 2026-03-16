@@ -2,15 +2,24 @@ import { el } from '../utils/dom.js';
 import { getState, setState } from '../state.js';
 import { navigate } from '../router.js';
 import { showTeacherAuth } from './teacherAuth.js';
+import { showStatusPopup } from './statusPopup.js';
 
 export function renderNavbar() {
   const state = getState();
 
   const nav = el('nav', { className: 'bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-40' },
-    el('h1', {
-      className: 'text-lg font-bold cursor-pointer',
-      onclick: () => navigate('/'),
-    }, 'LogicTree'),
+    el('div', { className: 'flex items-center gap-4' },
+      el('h1', {
+        className: 'text-lg font-bold cursor-pointer',
+        onclick: () => navigate('/'),
+      }, 'LogicTree'),
+      ...(state.nickname
+        ? [el('button', {
+            className: 'text-sm text-gray-500 hover:text-gray-700',
+            onclick: () => showStatusPopup(),
+          }, '작성현황')]
+        : []),
+    ),
     el('div', { className: 'flex items-center gap-3' },
       ...(state.nickname
         ? [

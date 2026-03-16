@@ -35,8 +35,8 @@ export async function getProjects(nicknameFilter = null) {
   return snapshot.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .sort((a, b) => {
-      const ta = a.createdAt?.toMillis?.() || 0;
-      const tb = b.createdAt?.toMillis?.() || 0;
+      const ta = (a.submittedAt || a.createdAt)?.toMillis?.() || 0;
+      const tb = (b.submittedAt || b.createdAt)?.toMillis?.() || 0;
       return tb - ta;
     });
 }
@@ -62,7 +62,7 @@ export async function saveProject(data) {
 }
 
 export async function submitProject(id) {
-  await updateDoc(doc(db, 'projects', id), { status: 'submitted' });
+  await updateDoc(doc(db, 'projects', id), { status: 'submitted', submittedAt: serverTimestamp() });
 }
 
 export async function toggleBadge(id, currentBadge) {
@@ -158,6 +158,11 @@ export async function saveHelpConfig(config) {
   for (const key of Object.keys(DEFAULT_HELP)) {
     if (config[key]) helpCache[key] = { ...DEFAULT_HELP[key], ...config[key] };
   }
+}
+
+export async function getAllProjects() {
+  const snapshot = await getDocs(collection(db, 'projects'));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 export async function getCommentCountsForProject(projectId) {

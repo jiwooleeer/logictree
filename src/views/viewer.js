@@ -77,6 +77,41 @@ export async function renderViewer(container, params) {
     )
   );
 
+  // Goal comment button
+  const goalCommentCount = { value: 0 };
+  function goalCommentIcon() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z');
+    svg.appendChild(path);
+    return svg;
+  }
+
+  const goalCountSpan = el('span', { className: 'text-xs' }, '');
+  const goalDot = el('span', { className: 'w-2 h-2 bg-red-500 rounded-full hidden' });
+  const goalCommentBtn = el('button', {
+    className: 'relative inline-flex items-center gap-0.5 rounded-md p-1 shrink-0 transition-colors text-gray-300 hover:text-gray-600 hover:bg-gray-100',
+    title: '댓글',
+    onclick: (e) => {
+      e.stopPropagation();
+      goalDot.classList.add('hidden');
+      showCommentPopup(`${project.id}_goal`, e.currentTarget, () => {
+        goalCommentCount.value++;
+        goalCountSpan.textContent = String(goalCommentCount.value);
+        goalCommentBtn.classList.remove('text-gray-300');
+        goalCommentBtn.classList.add('text-gray-600');
+      });
+    },
+  }, goalCommentIcon(), goalCountSpan, goalDot);
+
   content.appendChild(
     el('div', { className: 'mb-6' },
       el('div', { className: 'flex items-center gap-2 mb-2' },
@@ -89,32 +124,27 @@ export async function renderViewer(container, params) {
           : []),
       ),
       el('span', { className: 'text-xs text-gray-400 uppercase tracking-wide' }, '목표'),
-      el('h2', { className: 'text-xl font-bold text-gray-900 mt-1' }, project.goal || '(목표 미작성)'),
+      el('div', { className: 'flex items-center gap-2 mt-1' },
+        el('h2', { className: 'text-xl font-bold text-gray-900' }, project.goal || '(목표 미작성)'),
+        goalCommentBtn,
+      ),
     )
   );
-
-  // Lesson learned summary
-  const lessons = [];
-  (project.content || []).forEach((b) => {
-    (b.reasons || []).forEach((r) => {
-      (r.hypotheses || []).forEach((h) => {
-        if (h.lessonLearned) lessons.push(h.lessonLearned);
-      });
-    });
-  });
-  if (lessons.length > 0) {
-    const summary = el('div', { className: 'bg-gray-50 rounded-xl p-4 mb-6' },
-      el('span', { className: 'text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2' }, '레슨런 요약'),
-    );
-    lessons.forEach((l) => {
-      summary.appendChild(el('p', { className: 'text-sm text-gray-700 mb-1' }, `• ${l}`));
-    });
-    content.appendChild(summary);
-  }
 
   // Blockers
   const lastSeenAt = parseInt(localStorage.getItem(`lastSeen_${project.id}`) || '0', 10);
   const { counts: allCommentCounts, latestAt: allLatestAt } = await getCommentCountsForProject(project.id);
+
+  // Update goal comment button with counts
+  const goalCount = allCommentCounts['_goal'] || 0;
+  const goalLatest = allLatestAt['_goal'] || 0;
+  if (goalCount > 0) {
+    goalCommentCount.value = goalCount;
+    goalCountSpan.textContent = String(goalCount);
+    goalCommentBtn.classList.remove('text-gray-300');
+    goalCommentBtn.classList.add('text-gray-600');
+    if (goalLatest > lastSeenAt) goalDot.classList.remove('hidden');
+  }
   const blockersContainer = el('div', { className: 'space-y-4' });
   (project.content || []).forEach((blocker, i) => {
     // Skip completely empty blockers

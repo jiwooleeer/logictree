@@ -38,16 +38,16 @@ export function showCommentPopup(targetId, anchorEl, onPost) {
     },
   }, '전송');
 
-  const modal = el('div', { className: 'bg-white rounded-xl shadow-lg w-96 max-h-[400px] flex flex-col' },
-    el('div', { className: 'flex items-center justify-between px-4 py-3 border-b border-gray-100' },
+  const modal = el('div', { className: 'bg-white rounded-xl shadow-lg w-[28rem] max-h-[70vh] flex flex-col' },
+    el('div', { className: 'flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0' },
       el('h4', { className: 'text-sm font-semibold' }, '댓글'),
       el('button', {
         className: 'text-gray-400 hover:text-gray-600 text-lg',
         onclick: () => popup.remove(),
       }, '×'),
     ),
-    el('div', { className: 'px-4 py-3' }, listContainer),
-    el('div', { className: 'flex gap-2 px-4 py-3 border-t border-gray-100' }, input, sendBtn),
+    el('div', { className: 'px-4 py-3 overflow-y-auto flex-1 min-h-0' }, listContainer),
+    el('div', { className: 'flex gap-2 px-4 py-3 border-t border-gray-100 shrink-0' }, input, sendBtn),
   );
 
   popup.appendChild(modal);
